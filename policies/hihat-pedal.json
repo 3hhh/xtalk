@@ -1,0 +1,2 @@
+[ { "cause": [44], "notes": [42, 46], "threshold": 40, "comment": "The hihat pedal (44) tends to cause cross-talk with the hihat bow or rim (42, 46) when used." },
+{ "cause": [44], "notes": [38], "threshold": 10, "comment": "The hihat pedal (44) tends to cause low cross-talk with the snare (38) when used." } ]

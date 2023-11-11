@@ -1,0 +1,3 @@
+[ { "cause": [55,49,51,53,59], "notes": [43,45,48,38,40], "threshold": 25, "comment": "Crash and ride generally cause some cross-talk to the toms." },
+{ "cause": [55,59], "notes": [49,51], "threshold": 10, "comment": "Hard crash and ride rim hits (55, 59) cause minor cross-talk to regular crash & ride hits (49, 51)." },
+{ "cause": [0], "notes": [53,55], "threshold": 0, "check_disabled": true, "comment": "The ride and crash chokes cause certain MIDI notes. In some cases this needs ~10ms delay." } ]
