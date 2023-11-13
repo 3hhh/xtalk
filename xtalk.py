@@ -79,13 +79,15 @@ class FilterPolicy():
     the last [delay]+[history] milliseconds, check whether the current note is above the given [threshold] percent (relative to the strongest
     velocity among all recently played [cause] notes). If so, pass the current note.
     If not, check whether the same note was recently played with an acceptable velocity. Cancel/filter it otherwise.
-    Moreover check_disabled=true can be used to check, whether the current note was recently disabled via a note_off or aftertouch MIDI event.
-    If so, the current note will be filtered. check_disabled=false is the default.
+    Moreover check_disable=true can be used to check, whether the current note was recently disabled via a note_off or aftertouch MIDI event.
+    If so, the current note will be filtered. check_disable=false is the default.
+    multi_disable=false can be used with check_disable=true to require a single disable note for every note to be disabled. By default,
+    a single disable note will disable all identical notes during the entire history + delay time frame.
 
     A minimum velocity for all notes can also be enforced.
 
     Default policy:
-    { "notes": [], "cause": [], "threshold": -1, "minimum": -1, "check_disabled": false, "comment": "Empty lists indicate that all notes should be matched. An invalid threshold causes the command-line threshold to be used." }
+    { "notes": [], "cause": [], "threshold": -1, "minimum": -1, "check_disable": false, "comment": "Empty lists indicate that all notes should be matched. An invalid threshold causes the command-line threshold to be used." }
     """
 
     def __init__(self, path=None):
@@ -103,7 +105,7 @@ class FilterPolicy():
                                 self.add_policies(json.load(fp))
         if not self.policies:
             #load default policies
-            self.add_policy(json.loads('{ "notes": [], "cause": [], "threshold": -1, "minimum": -1, "check_disabled": false }'))
+            self.add_policy(json.loads('{ "notes": [], "cause": [], "threshold": -1, "minimum": -1, "check_disable": false }'))
 
     def add_policy(self, policy):
         #set defaults
@@ -121,13 +123,14 @@ class FilterPolicy():
             minimum = int(ARGS.minimum)
         else:
             minimum = int(policy["minimum"])
-        check_disabled = bool(policy.get("check_disabled", False))
+        check_disable = bool(policy.get("check_disable", False))
+        multi_disable = bool(policy.get("multi_disable", True))
 
         #add policy
         for note in notes:
             if not self.policies.get(note):
                 self.policies[note] = []
-            self.policies[note].append({"cause": cause, "threshold": threshold, "minimum": minimum, "check_disabled": check_disabled})
+            self.policies[note].append({"cause": cause, "threshold": threshold, "minimum": minimum, "check_disable": check_disable, "multi_disable": multi_disable})
 
     def add_policies(self, policies):
         try:
@@ -138,9 +141,6 @@ class FilterPolicy():
 
     def blocks(self, msg):
         """ Check the given MIDI note on message against this policy. Returns None, if the policy allows it, otherwise returns the blocking policy. """
-        #consume disable notes
-        disabled = DISABLED.pop_similar(msg)
-
         #get the policies for that note
         try:
             policies = self.policies[msg[1]]
@@ -149,12 +149,18 @@ class FilterPolicy():
             return None
 
         for policy in policies:
+            if policy.get("multi_disable"):
+                disabled = DISABLED.has_similar(msg)
+            else:
+                #consume disable notes
+                disabled = DISABLED.pop_similar(msg)
+
             #check whether the message reaches the required minimum velocity
             if msg[2] < policy.get("minimum", 0):
                 return policy
 
             #check whether any disable notes were recently seen
-            if policy.get("check_disabled") and disabled:
+            if policy.get("check_disable") and disabled:
                 return policy
 
             #check whether any cross talk notes (messages causing cross-talk as per the policy) were recently seen
@@ -253,7 +259,7 @@ async def read_in(midiin, wait_s=1/1000):
                 HISTORY.add(msg)
                 debug(f'note on: {msg}')
             elif is_note_disable(msg):
-                #track disable notes for check_disabled policy
+                #track disable notes for check_disable policy
                 DISABLED.add(msg)
                 debug(f'note disable: {msg}')
             await asyncio.sleep(0)
