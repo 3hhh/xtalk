@@ -78,7 +78,8 @@ class FilterPolicy():
     On a MIDI note matching the set of [notes], check for cross-talk with the set of [cause] notes. If any [cause] notes were seen during
     the last [delay]+[history] milliseconds, check whether the current note is above the given [threshold] percent (relative to the strongest
     velocity among all recently played [cause] notes). If so, pass the current note.
-    If not, check whether the same note was recently played with an acceptable velocity. Cancel/filter it otherwise.
+    If not, check whether the same note was recently played with an acceptable velocity (set only_self=true to disable this check).
+    Cancel/filter it otherwise.
     Moreover check_disable=true can be used to check, whether the current note was recently disabled via a note_off or aftertouch MIDI event.
     If so, the current note will be filtered. check_disable=false is the default.
     multi_disable=false can be used with check_disable=true to require a single disable note for every note to be disabled. By default,
@@ -125,12 +126,13 @@ class FilterPolicy():
             minimum = int(policy["minimum"])
         check_disable = bool(policy.get("check_disable", False))
         multi_disable = bool(policy.get("multi_disable", True))
+        only_self = bool(policy.get("only_self", False))
 
         #add policy
         for note in notes:
             if not self.policies.get(note):
                 self.policies[note] = []
-            self.policies[note].append({"cause": cause, "threshold": threshold, "minimum": minimum, "check_disable": check_disable, "multi_disable": multi_disable})
+            self.policies[note].append({"cause": cause, "threshold": threshold, "minimum": minimum, "check_disable": check_disable, "multi_disable": multi_disable, "only_self": only_self})
 
     def add_policies(self, policies):
         try:
@@ -174,10 +176,15 @@ class FilterPolicy():
                 if c[2] > max_velocity:
                     max_velocity = c[2]
 
+            if policy.get("only_self"):
+                similar = [msg]
+            else:
+                similar = HISTORY.get_similar(msg)
+
             #check whether our message or similar messages with identical notes have an acceptable velocity
             acceptable_velocity = max_velocity * policy["threshold"]
             ret = False
-            for s in HISTORY.get_similar(msg): #includes our message
+            for s in similar: #includes our message
                 if s[2] >= acceptable_velocity:
                     ret=True
             if not ret:
