@@ -83,6 +83,7 @@ PLUGINS = [] #plugins in the order to use
 ARGS = None
 POLICY = None
 QUEUE = None
+LOOP = None
 HISTORY = MessageHistory(1) #recently seen note_on messages per note (idx = 1)
 DISABLED = MessageHistory(1) #recent NOTE_OFF or similar Midi messages per note number (idx = 1)
 
@@ -299,22 +300,25 @@ def is_note_disable(msg):
         return is_note_aftertouch(msg)
     return is_note_mod(msg)
 
-async def read_in(midiin, wait_s=1/1000):
-    while True:
-        tup = midiin.get_message()
-        if tup:
-            await QUEUE.put(tup)
-            msg = tup[0]
-            if is_note_on(msg):
-                HISTORY.add(msg)
-                debug(f'note on: {msg}')
-            elif is_note_disable(msg):
-                #track disable notes for check_disable policy
-                DISABLED.add(msg)
-                debug(f'note disable: {msg}')
-            await asyncio.sleep(0)
-        else:
-            await asyncio.sleep(wait_s)
+def read_callback(tup, data=None):
+    if LOOP is None:
+        return
+    #NOTE: we're running in the thread of the caller (no asyncio loop here)
+    #https://raspberrypi.stackexchange.com/questions/54514/implement-a-gpio-function-with-a-callback-calling-a-asyncio-method
+    if tup:
+        LOOP.call_soon_threadsafe(asyncio.create_task, read_in(tup))
+
+async def read_in(tup):
+    await QUEUE.put(tup)
+    msg = tup[0]
+    if is_note_on(msg):
+        HISTORY.add(msg)
+        debug(f'note on: {msg}')
+    elif is_note_disable(msg):
+        #track disable notes for check_disable policy
+        DISABLED.add(msg)
+        debug(f'note disable: {msg}')
+    await asyncio.sleep(0)
 
 def cleanup_note_on(msg):
     try:
@@ -394,7 +398,6 @@ async def write_out(midiout):
 async def run():
     global QUEUE
     QUEUE = asyncio.Queue()
-    tasks = None
     midiin = None
     midiout = None
 
@@ -402,11 +405,9 @@ async def run():
         midiout, midiout_port = open_midiport(port=ARGS.output, type_='output', client_name=ARGS.client, api=ARGS.api, port_name='output', use_virtual=(ARGS.output is None))
         midiin, midiin_port = open_midiport(port=ARGS.input, type_='input', client_name=ARGS.client, api=ARGS.api, port_name='input', use_virtual=(ARGS.input is None))
         midiin.ignore_types(sysex=False,timing=False,active_sense=False) #make sure no messages are ignored
-        tasks = asyncio.gather(read_in(midiin), write_out(midiout))
-        await tasks
+        midiin.set_callback(read_callback)
+        await write_out(midiout)
     finally:
-        if tasks:
-            tasks.cancel()
         if midiin:
             del midiin
         if midiout:
@@ -426,6 +427,7 @@ def print_info():
 def main():
     global ARGS
     global POLICY
+    global LOOP
     ARGS = parse_args()
     POLICY = FilterPolicy(ARGS.policy)
     debug(POLICY)
@@ -462,7 +464,11 @@ def main():
         i=i+1
 
     #run
-    asyncio.run(run())
+    LOOP = asyncio.get_event_loop()
+    try:
+        LOOP.run_until_complete(run())
+    finally:
+        LOOP = None
 
 if __name__ == '__main__':
     sys.exit(main())
