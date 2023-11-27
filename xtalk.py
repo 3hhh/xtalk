@@ -1,12 +1,24 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # -*- encoding: utf8 -*-
 #
 # MIDI cross-talk cancellation filter.
 #
-# Copyright (C) 2023  David Hobach  GPLv3
-# 0.7
+# Copyright (C) 2023
+#                   David Hobach <tripleh@hackingthe.net>
 #
-# rtmidi doc: https://spotlightkid.github.io/python-rtmidi/rtmidi.html
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
 import argparse
@@ -15,7 +27,10 @@ import sys
 import time
 import os
 import json
-import rtmidi
+import copy
+import inspect
+import importlib.util
+import rtmidi # rtmidi doc: https://spotlightkid.github.io/python-rtmidi/rtmidi.html
 from rtmidi.midiutil import list_input_ports
 from rtmidi.midiutil import list_output_ports
 from rtmidi.midiutil import open_midiport
@@ -59,17 +74,27 @@ class MessageHistory():
     def __str__(self):
         return f'{self._idx}: {self._history}'
 
-#constants
-MIDI_NOTEON     = 0x90 #lower bytes must be ignored
-MIDI_NOTEOFF    = 0x80 #lower bytes must be ignored
-MIDI_AFTERTOUCH = 0xA0 #lower bytes must be ignored
-
 #global vars
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+PLUGIN_DIR_NAME = 'plugins'
+PLUGIN_DIR = os.path.join(SCRIPT_DIR, PLUGIN_DIR_NAME)
+PLUGIN_CONF_FILE = os.path.join(PLUGIN_DIR, 'config.json')
+PLUGINS = [] #plugins in the order to use
 ARGS = None
 POLICY = None
 QUEUE = None
 HISTORY = MessageHistory(1) #recently seen note_on messages per note (idx = 1)
 DISABLED = MessageHistory(1) #recent NOTE_OFF or similar Midi messages per note number (idx = 1)
+
+#import the plugin base class
+sys.path.insert(1, PLUGIN_DIR)
+from plugins import XtalkPlugin
+from plugins import XtalkPluginException
+from plugins import XtalkPluginAbortException
+from plugins import is_note_on
+from plugins import is_note_off
+from plugins import is_note_aftertouch
+from plugins import is_note_mod
 
 class FilterPolicy():
     """ A policy that defines how to filter MIDI events for cross-talk cancellation.
@@ -96,13 +121,13 @@ class FilterPolicy():
 
         if path:
             if os.path.isfile(path):
-                with open(path) as fp:
+                with open(path, encoding="utf-8") as fp:
                     self.add_policies(json.load(fp))
             else: #directory
                 with os.scandir(path) as it:
                     for entry in it:
                         if entry.name.endswith('.json') and entry.is_file():
-                            with open(entry) as fp:
+                            with open(entry, encoding="utf-8") as fp:
                                 self.add_policies(json.load(fp))
         if not self.policies:
             #load default policies
@@ -195,6 +220,31 @@ class FilterPolicy():
     def __str__(self):
         return self.policies.__str__()
 
+class PluginLoadFailedException(Exception):
+    ''' Raised when a plugin load operation fails. '''
+
+class PluginAbortException(Exception):
+    ''' Raised when a plugin wants to abort further processing. '''
+
+def load_plugin(plugin, cls=XtalkPlugin):
+    plugin_file = ''.join([PLUGIN_DIR, '/', plugin, '.py'])
+    try:
+        spec = importlib.util.spec_from_file_location(PLUGIN_DIR_NAME + '.' + plugin, plugin_file)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+    except FileNotFoundError as e:
+        raise PluginLoadFailedException('Could not load the plugin %s from the file %s. Does it not exist?' % (plugin, plugin_file)) from e
+
+    ret = None
+    cls_name = '_'.join([cls.__name__, plugin])
+    for _, member in inspect.getmembers(module, inspect.isclass):
+        if member.__name__ == cls_name and issubclass(member, cls):
+            ret = member
+            break
+    if not ret:
+        raise PluginLoadFailedException(f'The plugin {plugin} appears to be incorrectly implemented. No matching class {cls_name} found.')
+    return ret
+
 def find_api(api_name):
     if api_name == "default":
         return 0
@@ -217,6 +267,7 @@ def parse_args():
     parser.add_argument('-a', '--api', default='default', choices=['jack', 'alsa', 'default'], help='MIDI API to use. Use default on non-Linux devices.')
     parser.add_argument('-P', '--policy', help='Path to a json file or directory with *.json files defining the MIDI filter policy to use. A policy allows for more fine-grained cross-talk cancellation. You can find some examples in the policies folder. Policies are loaded in alphabetical order and may override parameters given on the command-line.')
     parser.add_argument('--dtypes', default='aftertouch', choices=['none', 'note_off', 'aftertouch', 'any'], help='Defines the type of MIDI events to consider MIDI disable notes. Only useful with the -P option and check_disable=true.')
+    parser.add_argument('--plugins', help='Comma-separated list of plugins to use. Plugins will be called in the order in which they are specified here and after the xtalk policy decision is made. Plugins are python classes that can be used to filter, add or modify MIDI messages.')
     parser.add_argument('--list', action='store_true', help='Just list the available APIs and their MIDI ports.')
     parser.add_argument('--debug', action='store_true', help='Print debug output.')
     args = parser.parse_args()
@@ -230,31 +281,23 @@ def parse_args():
     if args.minimum < 0 or args.minimum > 128:
         raise ValueError('The minimum velocity must be between 0 and 128.')
 
+    if args.plugins:
+        args.plugins = args.plugins.split(',')
+    else:
+        args.plugins = []
+
     args.api = find_api(args.api)
 
     return args
 
-def is_note_on(msg):
-    return ((msg[0] & 0xf0) ^ MIDI_NOTEON) == 0
-
-def is_note_off(msg):
-    return ((msg[0] & 0xf0) ^ MIDI_NOTEOFF) == 0
-
-def is_note_aftertouch(msg):
-    return ((msg[0] & 0xf0) ^ MIDI_AFTERTOUCH) == 0
-
-def is_note_mod(msg):
-    return is_note_off(msg) or is_note_aftertouch(msg)
-
 def is_note_disable(msg):
     if ARGS.dtypes == 'none':
         return False
-    elif ARGS.dtypes == 'note_off':
+    if ARGS.dtypes == 'note_off':
         return is_note_off(msg)
-    elif ARGS.dtypes == 'aftertouch':
+    if ARGS.dtypes == 'aftertouch':
         return is_note_aftertouch(msg)
-    else: #'any'
-        return is_note_mod(msg)
+    return is_note_mod(msg)
 
 async def read_in(midiin, wait_s=1/1000):
     while True:
@@ -315,12 +358,38 @@ async def write_out(midiout):
             bpolicy = POLICY.blocks(msg)
             send = ( bpolicy is None )
 
-        #send
+        #decide
+        msgs = []
         if send:
-            midiout.send_message(msg)
+            msgs.append(msg)
             debug(f'passed: {msg}')
         else:
             debug(f'SUPPRESSED: {msg}, policy: {bpolicy}')
+
+        #plugins may modify messages --> better create a copy or our own memory references may change
+        if PLUGINS:
+            pmsgs = copy.deepcopy(msgs)
+        else:
+            pmsgs = msgs
+
+        #run plugins
+        for plugin in PLUGINS:
+            try:
+                omsgs = []
+                for msg in pmsgs:
+                    async for m in plugin.process(msg):
+                        omsgs.append(m)
+                pmsgs = omsgs
+            except XtalkPluginAbortException as e:
+                #stop processing further messages
+                raise PluginAbortException(f'The {plugin} plugin raised an abort exception.') from e
+            except XtalkPluginException as e:
+                #don't stop processing
+                print(f'The {plugin} plugin raised an exception: {e}')
+
+        #send
+        for msg in pmsgs:
+            midiout.send_message(msg)
 
 async def run():
     global QUEUE
@@ -328,6 +397,7 @@ async def run():
     tasks = None
     midiin = None
     midiout = None
+
     try:
         midiout, midiout_port = open_midiport(port=ARGS.output, type_='output', client_name=ARGS.client, api=ARGS.api, port_name='output', use_virtual=(ARGS.output is None))
         midiin, midiin_port = open_midiport(port=ARGS.input, type_='input', client_name=ARGS.client, api=ARGS.api, port_name='input', use_virtual=(ARGS.input is None))
@@ -362,8 +432,37 @@ def main():
 
     if ARGS.list:
         print_info()
-    else:
-        asyncio.run(run())
+        return
+
+    #read plugin configuration, if available
+    try:
+        with open(PLUGIN_CONF_FILE, encoding="utf-8") as fp:
+            plugin_conf = json.load(fp)
+        debug(f'Plugin configuration loaded from {PLUGIN_CONF_FILE}.')
+    except:
+        plugin_conf = {}
+
+    #load plugins
+    plugin_classes = {}
+    i=0
+    for plugin in ARGS.plugins:
+        plugin_cls = plugin_classes.get(plugin)
+        if not plugin_cls:
+            plugin_cls = load_plugin(plugin)
+
+        #get plugin configuration
+        #try index first (useful if the same plugin is used multiple times), plugin name second
+        try:
+            pconf = plugin_conf[i]
+        except KeyError:
+            pconf = plugin_conf.get(plugin)
+
+        PLUGINS.append(plugin_cls(config=pconf))
+        debug(f'Plugin {plugin} loaded. Config: {pconf}')
+        i=i+1
+
+    #run
+    asyncio.run(run())
 
 if __name__ == '__main__':
     sys.exit(main())
