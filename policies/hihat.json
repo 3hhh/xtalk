@@ -1,1 +1,1 @@
-[ { "cause": [22,26], "notes": [43,45,48], "threshold": 20, "comment": "The hihat rim switches cause some tom triggers for whatever reason (edrumulus bug?)." } ]
+[ { "cause": [22,26], "notes": [43,45,48], "threshold": 25, "comment": "The hihat rim switches cause some tom triggers for whatever reason (edrumulus bug?)." } ]
