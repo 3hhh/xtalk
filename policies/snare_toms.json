@@ -1,2 +1,2 @@
-[ { "cause": [43,45,48,38,40], "notes": [43,45,48,38,40], "threshold": 30, "comment": "The toms and snare generally cause a lot of cross-talk among each other." },
-{ "cause": [43,45,48,38,40], "notes": [49], "threshold": 20, "comment": "The toms and snare cause some cross-talk to the crash (49)." } ]
+[ { "cause": [43,45,48], "notes": [43,45,48], "threshold": 20, "comment": "The toms generally cause cross-talk among each other." },
+{ "cause": [38,40], "notes": [48], "threshold": 10, "comment": "The snare (38, 40) may cause minor cross-talk to tom1 (48)." } ]

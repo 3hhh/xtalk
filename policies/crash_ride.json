@@ -1,3 +1,5 @@
-[ { "cause": [55,49,51,53,59], "notes": [43,45,48,38,40], "threshold": 25, "comment": "Crash and ride generally cause some cross-talk to the toms." },
+[ { "cause": [59], "notes": [43, 45], "threshold": 20, "comment": "Hard ride rim hits (59) cause cross-talk to tom2 (43) and tom3 (45)." },
+{ "cause": [59], "notes": [36], "threshold": 10, "comment": "Hard ride rim hits (59) cause minor cross-talk to the kick (36)." },
+{ "cause": [55], "notes": [38], "threshold": 10, "comment": "Hard crash rim hits (55) cause minor cross-talk to the snare (38)." },
 { "cause": [55,59], "notes": [49,51], "threshold": 10, "comment": "Hard crash and ride rim hits (55, 59) cause minor cross-talk to regular crash & ride hits (49, 51)." },
 { "cause": [0], "notes": [53,55], "threshold": 0, "check_disable": true, "comment": "The ride and crash chokes cause certain MIDI notes. In some cases this needs ~10ms delay." } ]
