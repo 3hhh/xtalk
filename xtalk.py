@@ -264,6 +264,7 @@ def parse_args():
     parser.add_argument('-H', '--history', default=150, type=int, help='History (ms): Time to keep old MIDI messages for cross-talk checks; excludes the delay.')
     parser.add_argument('-t', '--threshold', default=30, type=int, help='Threshold (%%): Acceptable percentage of the maximum velocity signals that came in during the delay + history time frame.')
     parser.add_argument('-m', '--minimum', default=0, type=int, help='Minimum velocity: All MIDI signals below that velocity are suppressed.')
+    parser.add_argument('-b', '--before', action='store_true', help='Block MIDI messages unrelated to notes until a decision is made for the next note on event. This will delay all messages happening before a note on event and block them, if the note_on event is blocked.')
     parser.add_argument('-c', '--client', default='xtalk', help='Name of the MIDI client to use.')
     parser.add_argument('-a', '--api', default='default', choices=['jack', 'alsa', 'default'], help='MIDI API to use. Use default on non-Linux devices.')
     parser.add_argument('-P', '--policy', help='Path to a json file or directory with *.json files defining the MIDI filter policy to use. A policy allows for more fine-grained cross-talk cancellation. You can find some examples in the policies folder. Policies are loaded in alphabetical order and may override parameters given on the command-line.')
@@ -338,6 +339,7 @@ def debug(print_msg):
         print(f'DEBUG ({now}): {print_msg}', flush=True)
 
 async def write_out(midiout):
+    cache = []
     delay = ARGS.delay / 1000
     history = ARGS.history / 1000
 
@@ -351,6 +353,8 @@ async def write_out(midiout):
 
         #debug(f'checking: {msg}')
 
+        msgs = [] #messages to handle during this iteration
+
         if is_note_disable(msg):
             #schedule cleanup
             asyncio.get_running_loop().call_later(history, cleanup_disabled, msg)
@@ -360,15 +364,23 @@ async def write_out(midiout):
 
             #check cross-talk cancellation policy
             bpolicy = POLICY.blocks(msg)
-            send = ( bpolicy is None )
+            send = bpolicy is None
+
+            #use & clear cache
+            msgs = cache
+            cache = []
+        elif ARGS.before and not is_note_mod(msg):
+            #cache until next NOTE_ON message
+            cache.append(msg)
+            continue
 
         #decide
-        msgs = []
+        msgs.append(msg)
         if send:
-            msgs.append(msg)
-            debug(f'passed: {msg}')
+            debug(f'passed: {msgs}')
         else:
-            debug(f'SUPPRESSED: {msg}, policy: {bpolicy}')
+            debug(f'SUPPRESSED: {msgs}, policy: {bpolicy}')
+            msgs = []
 
         #plugins may modify messages --> better create a copy or our own memory references may change
         if PLUGINS:
@@ -402,8 +414,8 @@ async def run():
     midiout = None
 
     try:
-        midiout, midiout_port = open_midiport(port=ARGS.output, type_='output', client_name=ARGS.client, api=ARGS.api, port_name='output', use_virtual=(ARGS.output is None))
-        midiin, midiin_port = open_midiport(port=ARGS.input, type_='input', client_name=ARGS.client, api=ARGS.api, port_name='input', use_virtual=(ARGS.input is None))
+        midiout, midiout_port = open_midiport(port=ARGS.output, type_='output', client_name=ARGS.client, api=ARGS.api, port_name='output', use_virtual=ARGS.output is None)
+        midiin, midiin_port = open_midiport(port=ARGS.input, type_='input', client_name=ARGS.client, api=ARGS.api, port_name='input', use_virtual=ARGS.input is None)
         midiin.ignore_types(sysex=False,timing=False,active_sense=False) #make sure no messages are ignored
         midiin.set_callback(read_callback)
         await write_out(midiout)
