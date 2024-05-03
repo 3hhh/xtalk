@@ -142,11 +142,11 @@ class FilterPolicy():
         cause = set(policy.get("cause"))
         if not cause:
             cause = set(range(127))
-        if not policy.get("threshold") or policy["threshold"] < 0 or policy["threshold"] > 100:
+        if policy.get("threshold") is None or policy["threshold"] < 0 or policy["threshold"] > 100:
             threshold = int(ARGS.threshold)/100
         else:
             threshold = int(policy["threshold"])/100
-        if not policy.get("minimum") or policy["minimum"] < 0 or policy["minimum"] > 127:
+        if policy.get("minimum") is None or policy["minimum"] < 0 or policy["minimum"] > 127:
             minimum = int(ARGS.minimum)
         else:
             minimum = int(policy["minimum"])
