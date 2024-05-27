@@ -404,6 +404,7 @@ async def write_out(midiout):
                 print(f'The {plugin} plugin raised an exception: {e}')
 
         #send
+        #debug(f'sending: {pmsgs}')
         for msg in pmsgs:
             midiout.send_message(msg)
 
@@ -471,7 +472,7 @@ def main():
         except KeyError:
             pconf = plugin_conf.get(plugin)
 
-        PLUGINS.append(plugin_cls(config=pconf))
+        PLUGINS.append(plugin_cls(config=pconf, debug=ARGS.debug))
         debug(f'Plugin {plugin} loaded. Config: {pconf}')
         i=i+1
 

@@ -19,6 +19,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
+import time
 from abc import ABC, abstractmethod
 
 #constants
@@ -47,13 +48,24 @@ class XtalkPluginAbortException(XtalkPluginException):
 class _XtalkPlugin(ABC):
     ''' Internal base class. Not meant to be used by users. '''
 
-    def __init__(self, config=None):
+    def __init__(self, config=None, debug=False):
         ''' Constructor.
         :param config: A dict with configuration options supplied by the user.
+        :param debug: Whether or not the plugin should run in debug mode.
         '''
+        self._debug = debug
         self.config = config
         if not self.config:
             self.config = {}
+
+    def debug(self, msg):
+        ''' Helper method to print debug output in a standard format.
+        :param msg: Debug message string.
+        '''
+        if self._debug:
+            now = time.time_ns()/1000000 #ms since epoch
+            cls_name = type(self).__name__
+            print(f'DEBUG ({now}): {cls_name}: {msg}', flush=True)
 
 class XtalkPlugin(_XtalkPlugin):
     '''
