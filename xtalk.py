@@ -454,7 +454,8 @@ def main():
         with open(PLUGIN_CONF_FILE, encoding="utf-8") as fp:
             plugin_conf = json.load(fp)
         debug(f'Plugin configuration loaded from {PLUGIN_CONF_FILE}.')
-    except:
+    except OSError:
+        debug(f'No configuration found at {PLUGIN_CONF_FILE}.')
         plugin_conf = {}
 
     #load plugins

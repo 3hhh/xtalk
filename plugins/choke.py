@@ -37,18 +37,13 @@ class XtalkPlugin_choke(XtalkPlugin):
     xtalk fix for https://github.com/corrados/edrumulus/issues/111
     '''
 
-    # configuration variables:
+    # configuration variables: use the config.json config file to set them
 
-    # map: note value of a low volume choke indicator --> set of notes to disable (may be empty)
-    CHOKE = {
-        59: { 59,51 }, #ride rim
-        51: { 59,51 }, #ride regular
-        55: { 55,49 }, #crash rim
-        49: { 55,49 }, #crash regular
-        }
+    # map: str note value of a low volume choke indicator --> set of int notes to disable (may be empty)
+    CHOKE = { }
 
     # minimum velocity of a choke note
-    CHOKE_MIN = 4
+    CHOKE_MIN = 0
 
     # maximum velocity of a choke note
     CHOKE_MAX = 20
@@ -60,8 +55,15 @@ class XtalkPlugin_choke(XtalkPlugin):
         self.last = None #last cymbal message, if any was seen lately
         self.last_choked = False #whether the last cymbal message was choked or not
         self.notes = set() #cymbal notes for quick access
+
+        if config:
+            self.CHOKE = dict(config.get('choke', self.CHOKE))
+            self.CHOKE_MIN = int(config.get('choke_min', self.CHOKE_MIN))
+            self.CHOKE_MAX = int(config.get('choke_max', self.CHOKE_MAX))
+            self.CYMBAL_MIN = int(config.get('cymbal_min', self.CYMBAL_MIN))
+
         for val in self.CHOKE.values():
-            self.notes = self.notes.union(val)
+            self.notes = self.notes.union(set(val))
         super().__init__(config=config, debug=debug)
 
     def _create_choke(self, msg):
@@ -78,7 +80,7 @@ class XtalkPlugin_choke(XtalkPlugin):
             velocity = msg[2]
 
             # check for choke note
-            if self.last and self.CHOKE_MAX >= velocity >= self.CHOKE_MIN and self.last[1] in self.CHOKE.get(note, {}):
+            if self.last and self.CHOKE_MAX >= velocity >= self.CHOKE_MIN and self.last[1] in self.CHOKE.get(str(note), {}):
                 self.debug(f'choke note: {msg}')
                 # make sure that chokes are only emitted once (otherwise drumgizmo will go to aftertouch 127 for a short time on a second choke note)
                 if not self.last_choked:
