@@ -469,7 +469,7 @@ def main():
         #get plugin configuration
         #try index first (useful if the same plugin is used multiple times), plugin name second
         try:
-            pconf = plugin_conf[i]
+            pconf = plugin_conf[str(i)]
         except KeyError:
             pconf = plugin_conf.get(plugin)
 
