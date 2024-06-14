@@ -1,2 +1,2 @@
 [ { "cause": [22,26], "notes": [43,45,48], "threshold": 25, "comment": "The hihat rim switches cause some tom triggers for whatever reason (edrumulus bug?)." },
-{ "cause": [42,46,22,26], "notes": [44], "threshold": 85, "comment": "Half-open hihat play - especially on the rim - causes the hihat pedal poti (44) to be triggered on hits (it is pushed down by the hit)." } ]
+{ "cause": [42,46,22,26], "notes": [44], "threshold": 30, "comment": "Half-open hihat play - especially on the rim - causes the hihat pedal poti (44) to be triggered on hits (it is pushed down by the hit)." } ]
