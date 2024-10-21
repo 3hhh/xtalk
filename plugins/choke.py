@@ -52,6 +52,8 @@ class XtalkPlugin_choke(XtalkPlugin):
     CYMBAL_MIN = 50
 
     def __init__(self, config=None, debug=False):
+        super().__init__(config=config, debug=debug)
+
         self.last = None #last cymbal message, if any was seen lately
         self.last_choked = False #whether the last cymbal message was choked or not
         self.notes = set() #cymbal notes for quick access
@@ -64,7 +66,6 @@ class XtalkPlugin_choke(XtalkPlugin):
 
         for val in self.CHOKE.values():
             self.notes = self.notes.union(set(val))
-        super().__init__(config=config, debug=debug)
 
     def _create_choke(self, msg):
         channel = msg[0] & 0x0F

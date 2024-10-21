@@ -7,8 +7,45 @@
       "55": [ 55,49 ],
       "49": [ 55,49 ]
     },
-    "comment": "59 = ride rim, 51 = ride, 55 = crash rim, 49 = crash",
+    "comment": "59 = ride rim, 51 = ride, 55 = crash rim, 49 = crash; see the choke.py code comments for further explanations of the configuration options.",
     "choke_max": 20,
     "cymbal_max": 50
+  },
+
+  "replace":
+  {
+    "replace": [
+      {
+        "enable": [ 36 ],
+        "disable": [ 36 ],
+        "from": [ 36 ],
+        "to": 48,
+        "enabled": true,
+        "id": "oscillating-kickdrum",
+	"comment": "36 = kick, 48 = high tom"
+      },
+      {
+        "enable": [ 38 ],
+        "disable": [ 45 ],
+        "from": [ 49 ],
+        "to": 51,
+        "enabled": false,
+        "id": "crash-to-ride",
+	"comment": "49 = crash bow, 51 = ride bow, 38 = snare, 45 = mid tom"
+      },
+      {
+        "enable": [ 38 ],
+        "disable": [ 45 ],
+        "from": [ 55 ],
+        "to": 59,
+        "enabled": false,
+        "id": "crash-to-ride",
+	"comment": "55 = crash rim, 59 = ride rim, 38 = snare, 45 = mid tom"
+      }
+    ],
+    "server": true,
+    "port": 1560,
+    "address": "localhost",
+    "comment": "On [enable] MIDI notes (may be empty), replace all incoming MIDI notes matching [from] to the MIDI note [to]. If [enabled] is true, do not wait for the [enable] notes to occur, but directly replace all incoming [from] notes with [to] right from the start. On [disable] MIDI notes, disable the replacement again. If a note is included in both [enable] and [disable], it will toggle the replacement. [port] specifies the port on which to run a TCP server to provide an unsecured API to enable the replacement. It can be switched off by setting [server] to false. Its interface can be set via [address] (default: localhost). netcat or other programs can be used to bind replacements to hotkeys via this API. Available API commands: enable|disable|toggle|unique [id]|next|previous. See the replace.py code comments for further details."
   }
 }

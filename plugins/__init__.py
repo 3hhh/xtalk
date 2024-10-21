@@ -39,6 +39,9 @@ def is_note_aftertouch(msg):
 def is_note_mod(msg):
     return is_note_off(msg) or is_note_aftertouch(msg)
 
+def is_note(msg):
+    return is_note_on(msg) or is_note_mod(msg)
+
 class XtalkPluginException(Exception):
     ''' Base class for plugin exceptions. '''
 
