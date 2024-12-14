@@ -478,7 +478,8 @@ def main():
         i=i+1
 
     #run
-    LOOP = asyncio.get_event_loop()
+    LOOP = asyncio.new_event_loop()
+    asyncio.set_event_loop(LOOP)
     try:
         LOOP.run_until_complete(run())
     finally:
