@@ -12,6 +12,17 @@
     "cymbal_max": 50
   },
 
+  "exec":
+  {
+    "exec": {
+      "51": [ "gnome-calculator" ]
+    },
+    "comment": "A simple test spawning gnome-calculator on MIDI note 51. See the exec.py code comments for further explanations of the configuration options.",
+    "pass": true,
+    "all_notes": false,
+    "suppress": 1000
+  },
+
   "replace":
   {
     "replace": [
