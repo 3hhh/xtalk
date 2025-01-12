@@ -64,6 +64,8 @@ class MessageHistory():
         yield from self._history[msg[self._idx]]
 
     def get_all(self, values):
+        if not values:
+            return
         for val in values:
             yield from self._history[val]
 
@@ -114,7 +116,7 @@ class FilterPolicy():
     A minimum velocity for all notes can also be enforced.
 
     Default policy:
-    { "notes": [], "cause": [], "threshold": -1, "minimum": -1, "check_disable": false, "comment": "Empty lists indicate that all notes should be matched. An invalid threshold causes the command-line threshold to be used." }
+    { "notes": [], "cause": [], "threshold": -1, "minimum": -1, "comment": "Empty lists indicate that all notes should be matched. An invalid threshold or minimum causes the command-line value to be used." }
     """
 
     def __init__(self, path=None):
@@ -130,18 +132,19 @@ class FilterPolicy():
                         if entry.name.endswith('.json') and entry.is_file():
                             with open(entry, encoding="utf-8") as fp:
                                 self.add_policies(json.load(fp))
-        if not self.policies:
+
+        if self.policies:
+            #make sure that the command-line minimum is always enforced (even if some notes already have policies)
+            self.add_policy(json.loads('{ "notes": [], "cause": [], "threshold": 0, "minimum": -1 }'))
+        else:
             #load default policies
-            self.add_policy(json.loads('{ "notes": [], "cause": [], "threshold": -1, "minimum": -1, "check_disable": false }'))
+            self.add_policy(json.loads('{ "notes": [], "cause": [], "threshold": -1, "minimum": -1 }'))
 
     def add_policy(self, policy):
         #set defaults
         notes = policy.get("notes")
         if not notes:
             notes = range(127)
-        cause = set(policy.get("cause"))
-        if not cause:
-            cause = set(range(127))
         if policy.get("threshold") is None or policy["threshold"] < 0 or policy["threshold"] > 100:
             threshold = int(ARGS.threshold)/100
         else:
@@ -150,6 +153,12 @@ class FilterPolicy():
             minimum = int(ARGS.minimum)
         else:
             minimum = int(policy["minimum"])
+        cause = set(policy.get("cause"))
+        if not cause:
+            if threshold != 0:
+                cause = set(range(127))
+            else:
+                cause = None
         check_disable = bool(policy.get("check_disable", False))
         multi_disable = bool(policy.get("multi_disable", True))
         only_self = bool(policy.get("only_self", False))
