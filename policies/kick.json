@@ -1,1 +1,2 @@
-[ { "cause": [36], "notes": [36], "threshold": 45, "only_self":true, "comment": "The kick drum sometimes double triggers." } ]
+[ { "cause": [36], "notes": [36], "threshold": 45, "minimum": 30, "only_self": true, "comment": "The kick drum sometimes double triggers." },
+{ "cause": [36], "notes": [30], "threshold": 10, "comment": "The kick drum (36) sometimes triggers snare rim shots (30)." } ]
