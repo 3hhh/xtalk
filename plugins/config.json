@@ -8,9 +8,9 @@
       "49": [ 55,49 ]
     },
     "comment": "59 = ride rim, 51 = ride, 55 = crash rim, 49 = crash; see the choke.py code comments for further explanations of the configuration options.",
-    "choke_max": 20,
-    "choke_cnt": 2,
-    "cymbal_max": 50
+    "choke_max": { "default": 20 },
+    "choke_cnt": { "default": 1, "55": 2, "49": 2 },
+    "cymbal_max": { "default": 50 }
   },
 
   "exec":

@@ -22,8 +22,15 @@
 import time
 
 from plugins import XtalkPlugin
+from plugins import XtalkPluginException
 from plugins import is_note_on
 from plugins import MIDI_AFTERTOUCH
+
+def assertHasDefault(dictionary):
+    try:
+        int(dictionary["default"])
+    except (KeyError, ValueError) as e:
+        raise XtalkPluginException(e) from e
 
 class XtalkPlugin_choke(XtalkPlugin):
     '''
@@ -44,17 +51,17 @@ class XtalkPlugin_choke(XtalkPlugin):
     # map: str note value of a low volume choke indicator --> set of int notes to disable (may be empty)
     CHOKE = { }
 
-    # minimum velocity of a choke note
-    CHOKE_MIN = 0
+    # minimum velocity of a choke note, map: note --> value, "default" as fallback
+    CHOKE_MIN = { "default": 0 }
 
     # maximum velocity of a choke note
-    CHOKE_MAX = 20
+    CHOKE_MAX = { "default": 20 }
 
     # number of times a choke note must be seen
-    CHOKE_CNT = 1
+    CHOKE_CNT = { "default": 1 }
 
     # minimum velocity of a cymbal hit to consider it worth choking
-    CYMBAL_MIN = 50
+    CYMBAL_MIN = { "default": 50 }
 
     # time in ms during which to allow chokes
     TIMEOUT = 3000
@@ -70,11 +77,15 @@ class XtalkPlugin_choke(XtalkPlugin):
 
         if config:
             self.CHOKE = dict(config.get('choke', self.CHOKE))
-            self.CHOKE_MIN = int(config.get('choke_min', self.CHOKE_MIN))
-            self.CHOKE_MAX = int(config.get('choke_max', self.CHOKE_MAX))
-            self.CHOKE_CNT = int(config.get('choke_cnt', self.CHOKE_CNT))
-            self.CYMBAL_MIN = int(config.get('cymbal_min', self.CYMBAL_MIN))
+            self.CHOKE_MIN = dict(config.get('choke_min', self.CHOKE_MIN))
+            self.CHOKE_MAX = dict(config.get('choke_max', self.CHOKE_MAX))
+            self.CHOKE_CNT = dict(config.get('choke_cnt', self.CHOKE_CNT))
+            self.CYMBAL_MIN = dict(config.get('cymbal_min', self.CYMBAL_MIN))
             self.TIMEOUT = int(config.get('timeout', self.TIMEOUT))
+            assertHasDefault(self.CHOKE_MIN)
+            assertHasDefault(self.CHOKE_MAX)
+            assertHasDefault(self.CHOKE_CNT)
+            assertHasDefault(self.CYMBAL_MIN)
 
         for val in self.CHOKE.values():
             self.notes = self.notes.union(set(val))
@@ -96,18 +107,24 @@ class XtalkPlugin_choke(XtalkPlugin):
     async def process(self, msg):
         if is_note_on(msg):
             note = msg[1]
+            note_str = str(note)
             velocity = msg[2]
             now = time.time_ns()/1000000 #ms since epoch
+
+            choke_min = self.CHOKE_MIN.get(note_str, self.CHOKE_MIN["default"])
+            choke_max = self.CHOKE_MAX.get(note_str, self.CHOKE_MAX["default"])
+            cymbal_min = self.CYMBAL_MIN.get(note_str, self.CYMBAL_MIN["default"])
+            choke_cnt = self.CHOKE_CNT.get(note_str, self.CHOKE_CNT["default"])
 
             if self.last_time and (self.last_time - now) > self.TIMEOUT:
                 self.debug('choke timeout reached')
                 self.clear()
 
             # check for choke note
-            if self.last and self.CHOKE_MAX >= velocity >= self.CHOKE_MIN and self.last[1] in self.CHOKE.get(str(note), {}):
-                self.debug(f'choke note: {msg}')
+            if self.last and choke_max >= velocity >= choke_min and self.last[1] in self.CHOKE.get(str(note), {}):
+                self.debug(f'choke note: {msg}, choke_min: {choke_min}, choke_max: {choke_max}, choke_cnt: {choke_cnt}, cymbal_min: {cymbal_min}')
                 self.choke_cnt += 1
-                if self.choke_cnt >= self.CHOKE_CNT:
+                if self.choke_cnt >= choke_cnt:
                     # make sure that chokes are only emitted once (otherwise drumgizmo will go to aftertouch 127 for a short time on a second choke note)
                     if not self.last_choked:
                         for choke in self._create_choke(self.last):
@@ -121,7 +138,7 @@ class XtalkPlugin_choke(XtalkPlugin):
             if note in self.notes:
                 self.clear()
 
-                if velocity >= self.CYMBAL_MIN:
+                if velocity >= cymbal_min:
                     self.debug(f'regular cymbal hit: {msg}')
                     self.last = msg
                     self.last_time = now
