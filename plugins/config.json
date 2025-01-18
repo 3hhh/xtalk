@@ -13,6 +13,14 @@
     "cymbal_max": { "default": 50 }
   },
 
+  "amplify":
+  {
+    "amplify": {
+      "51": { "multiply": 70, "add": 10 }
+    },
+    "comment": "Change the velocity of the 51 note to 70% of its original value and add 10 points."
+  },
+
   "exec":
   {
     "exec": {
