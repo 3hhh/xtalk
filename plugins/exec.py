@@ -61,8 +61,11 @@ class XtalkPlugin_exec(XtalkPlugin):
             self.ALL_NOTES = bool(config.get('all_notes', self.ALL_NOTES))
 
         for val in self.EXEC.values():
-            if not isinstance(val, list):
-                raise ValueError(f'The command must be specified as [command, arg1, arg2, ...], but this looks different: {val}')
+            try:
+                for d in val:
+                    _testing = d['command'][0]
+            except (TypeError, KeyError, ValueError) as e:
+                raise ValueError(f'The commands must be specified as in the example, but this looks different: {val}') from e
 
     async def execute_coro(self, command):
         try:
@@ -84,6 +87,9 @@ class XtalkPlugin_exec(XtalkPlugin):
 
         if is_note(msg):
             note = msg[1]
+            velocity = 0
+            if is_note_on(msg):
+                velocity = msg[2]
 
             to_exec = self.EXEC.get(str(note))
             if to_exec:
@@ -94,9 +100,14 @@ class XtalkPlugin_exec(XtalkPlugin):
                     if last and ( now - last <= self.SUPPRESS ):
                         self.debug(f'execution of {to_exec} suppressed: {msg}')
                     else:
-                        self.debug(f'executing: {to_exec}')
                         self.suppression_cache[note] = now
-                        self.execute(to_exec)
+                        for ex in to_exec:
+                            min_velocity = ex.get('min_velocity', 0)
+                            if velocity >= min_velocity:
+                                cmd = ex['command']
+                                self.debug(f'executing: {cmd}')
+                                self.execute(cmd)
+                                break
 
                 #NOTE: we intentionally also block note off or other related messages here with self.PASS = False - even if nothing was executed
                 pass_msg = self.PASS

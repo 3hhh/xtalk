@@ -24,9 +24,12 @@
   "exec":
   {
     "exec": {
-      "51": [ "gnome-calculator" ]
+      "51": [
+          { "command": [ "gnome-calculator" ], "min_velocity": 70 },
+          { "command": [ "bash", "-c", "--", "echo $(date) hello world! >> /tmp/exec-test.txt" ] }
+        ]
     },
-    "comment": "A simple test spawning gnome-calculator on MIDI note 51. See the exec.py code comments for further explanations of the configuration options.",
+    "comment": "A simple test spawning gnome-calculator on MIDI note 51, if velocity is >= 70 and the bash command otherwise. See the exec.py code comments for further explanations of the configuration options.",
     "pass": true,
     "all_notes": false,
     "suppress": 1000
