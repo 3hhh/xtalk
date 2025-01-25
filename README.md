@@ -27,6 +27,6 @@ Just remove the directory created during the installation and uninstall the xtal
 
 ## Copyright
 
-© 2023 David Hobach
+© 2025 David Hobach
 
 xtalk is released under the GPLv3 license; see `LICENSE` for details.

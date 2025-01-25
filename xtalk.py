@@ -3,7 +3,7 @@
 #
 # MIDI cross-talk cancellation filter.
 #
-# Copyright (C) 2023
+# Copyright (C) 2025
 #                   David Hobach <tripleh@hackingthe.net>
 #
 # This program is free software; you can redistribute it and/or modify
@@ -80,7 +80,7 @@ class MessageHistory():
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 PLUGIN_DIR_NAME = 'plugins'
 PLUGIN_DIR = os.path.join(SCRIPT_DIR, PLUGIN_DIR_NAME)
-PLUGIN_CONF_FILE = os.path.join(PLUGIN_DIR, 'config.json')
+PLUGIN_CONF_FILE_DEFAULT = os.path.join(PLUGIN_DIR, 'config.json')
 PLUGINS = [] #plugins in the order to use
 ARGS = None
 POLICY = None
@@ -279,6 +279,7 @@ def parse_args():
     parser.add_argument('-P', '--policy', help='Path to a json file or directory with *.json files defining the MIDI filter policy to use. A policy allows for more fine-grained cross-talk cancellation. You can find some examples in the policies folder. Policies are loaded in alphabetical order and may override parameters given on the command-line.')
     parser.add_argument('--dtypes', default='aftertouch', choices=['none', 'note_off', 'aftertouch', 'any'], help='Defines the type of MIDI events to consider MIDI disable notes. Only useful with the -P option and check_disable=true. (default: %(default)s)')
     parser.add_argument('--plugins', help='Comma-separated list of plugins to use. Plugins will be called in the order in which they are specified here and after the xtalk policy decision is made. Plugins are python classes that can be used to filter, add or modify MIDI messages.')
+    parser.add_argument('--plugins-config', default=PLUGIN_CONF_FILE_DEFAULT, help='Configuration file to use for plugins. (default: %(default)s)')
     parser.add_argument('--list', action='store_true', help='Just list the available APIs and their MIDI ports.')
     parser.add_argument('--debug', action='store_true', help='Print debug output.')
     args = parser.parse_args()
@@ -460,11 +461,11 @@ def main():
 
     #read plugin configuration, if available
     try:
-        with open(PLUGIN_CONF_FILE, encoding="utf-8") as fp:
+        with open(ARGS.plugins_config, encoding="utf-8") as fp:
             plugin_conf = json.load(fp)
-        debug(f'Plugin configuration loaded from {PLUGIN_CONF_FILE}.')
+        debug(f'Plugin configuration loaded from {ARGS.plugins_config}.')
     except OSError:
-        debug(f'No configuration found at {PLUGIN_CONF_FILE}.')
+        debug(f'No plugin configuration found at {ARGS.plugins_config}.')
         plugin_conf = {}
 
     #load plugins
