@@ -27,11 +27,17 @@ MIDI_NOTEON     = 0x90 #lower bytes must be ignored
 MIDI_NOTEOFF    = 0x80 #lower bytes must be ignored
 MIDI_AFTERTOUCH = 0xA0 #lower bytes must be ignored
 
-def is_note_on(msg):
-    return ((msg[0] & 0xf0) ^ MIDI_NOTEON) == 0
+def is_note_on(msg, strict=False):
+    if strict:
+        return ((msg[0] & 0xf0) ^ MIDI_NOTEON) == 0
+    #according to the MIDI standard, note on with 0 velocity is a note off
+    return is_note_on(msg, strict=True) and msg[2] > 0
 
-def is_note_off(msg):
-    return ((msg[0] & 0xf0) ^ MIDI_NOTEOFF) == 0
+def is_note_off(msg, strict=False):
+    if strict:
+        return ((msg[0] & 0xf0) ^ MIDI_NOTEOFF) == 0
+    #according to the MIDI standard, note on with 0 velocity is a note off
+    return is_note_off(msg, strict=True) or (is_note_on(msg, strict=True) and msg[2] == 0)
 
 def is_note_aftertouch(msg):
     return ((msg[0] & 0xf0) ^ MIDI_AFTERTOUCH) == 0
