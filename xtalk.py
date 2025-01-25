@@ -280,9 +280,16 @@ def parse_args():
     parser.add_argument('--dtypes', default='aftertouch', choices=['none', 'note_off', 'aftertouch', 'any'], help='Defines the type of MIDI events to consider MIDI disable notes. Only useful with the -P option and check_disable=true. (default: %(default)s)')
     parser.add_argument('--plugins', help='Comma-separated list of plugins to use. Plugins will be called in the order in which they are specified here and after the xtalk policy decision is made. Plugins are python classes that can be used to filter, add or modify MIDI messages.')
     parser.add_argument('--plugins-config', default=PLUGIN_CONF_FILE_DEFAULT, help='Configuration file to use for plugins. (default: %(default)s)')
+    parser.add_argument('--plugins-only', action='store_true', help='Short for --threshold 0 --delay 0 --history 0 --minimum 0. Essentially disables cross-talk cancellation and only runs loaded plugins.')
     parser.add_argument('--list', action='store_true', help='Just list the available APIs and their MIDI ports.')
     parser.add_argument('--debug', action='store_true', help='Print debug output.')
     args = parser.parse_args()
+
+    if args.plugins_only:
+        args.threshold = 0
+        args.delay = 0
+        args.history = 0
+        args.minimum = 0
 
     if args.delay < 0:
         raise ValueError('Delay is out of range.')
