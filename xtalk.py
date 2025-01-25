@@ -144,7 +144,7 @@ class FilterPolicy():
         #set defaults
         notes = policy.get("notes")
         if not notes:
-            notes = range(127)
+            notes = range(128)
         if policy.get("threshold") is None or policy["threshold"] < 0 or policy["threshold"] > 100:
             threshold = int(ARGS.threshold)/100
         else:
@@ -156,7 +156,7 @@ class FilterPolicy():
         cause = set(policy.get("cause"))
         if not cause:
             if threshold != 0:
-                cause = set(range(127))
+                cause = set(range(128))
             else:
                 cause = None
         check_disable = bool(policy.get("check_disable", False))
