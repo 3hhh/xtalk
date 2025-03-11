@@ -22,12 +22,12 @@
 import asyncio
 import subprocess
 import sys
-import time
 import traceback
 
 from plugins import XtalkPlugin
 from plugins import is_note
 from plugins import is_note_on
+from plugins import get_epoch_now
 
 class XtalkPlugin_exec(XtalkPlugin):
     '''
@@ -95,7 +95,7 @@ class XtalkPlugin_exec(XtalkPlugin):
             if to_exec:
                 if self.ALL_NOTES or is_note_on(msg):
                     last = self.suppression_cache.get(note)
-                    now = time.time_ns()/1000000 #ms since epoch
+                    now = get_epoch_now()
 
                     if last and ( now - last <= self.SUPPRESS ):
                         self.debug(f'execution of {to_exec} suppressed: {msg}')

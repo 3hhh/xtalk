@@ -19,11 +19,10 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-import time
-
 from plugins import XtalkPlugin
 from plugins import XtalkPluginException
 from plugins import is_note_on
+from plugins import get_epoch_now
 from plugins import MIDI_AFTERTOUCH
 
 def assertHasDefault(dictionary):
@@ -109,7 +108,7 @@ class XtalkPlugin_choke(XtalkPlugin):
             note = msg[1]
             note_str = str(note)
             velocity = msg[2]
-            now = time.time_ns()/1000000 #ms since epoch
+            now = get_epoch_now()
 
             choke_min = self.CHOKE_MIN.get(note_str, self.CHOKE_MIN["default"])
             choke_max = self.CHOKE_MAX.get(note_str, self.CHOKE_MAX["default"])

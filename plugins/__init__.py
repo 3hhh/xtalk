@@ -48,6 +48,9 @@ def is_note_mod(msg):
 def is_note(msg):
     return is_note_on(msg) or is_note_mod(msg)
 
+def get_epoch_now():
+    return time.time_ns()/1000000
+
 class XtalkPluginException(Exception):
     ''' Base class for plugin exceptions. '''
 
@@ -72,7 +75,7 @@ class _XtalkPlugin(ABC):
         :param msg: Debug message string.
         '''
         if self._debug:
-            now = time.time_ns()/1000000 #ms since epoch
+            now = get_epoch_now()
             cls_name = type(self).__name__
             print(f'DEBUG ({now}): {cls_name}: {msg}', flush=True)
 

@@ -24,7 +24,6 @@
 import argparse
 import asyncio
 import sys
-import time
 import os
 import json
 import copy
@@ -98,6 +97,7 @@ from plugins import is_note_on
 from plugins import is_note_off
 from plugins import is_note_aftertouch
 from plugins import is_note_mod
+from plugins import get_epoch_now
 
 class FilterPolicy():
     """ A policy that defines how to filter MIDI events for cross-talk cancellation.
@@ -352,7 +352,7 @@ def cleanup_disabled(msg):
 
 def debug(print_msg):
     if ARGS.debug:
-        now = time.time_ns()/1000000 #ms since epoch
+        now = get_epoch_now()
         print(f'DEBUG ({now}): {print_msg}', flush=True)
 
 async def write_out(midiout):
