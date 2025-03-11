@@ -267,8 +267,8 @@ def find_api(api_name):
 
 def parse_args():
     parser = argparse.ArgumentParser(description='MIDI cross-talk cancellation filter. All incoming MIDI messages are delayed for [delay] milliseconds and stored for [history] milliseconds. Once the delay expires, the notes with acceptable velocity which came in during that time frame are identified (at least [threshold] percent velocity of the strongest velocity that came in). If the current message shares an instrument with that group, it is let through.')
-    parser.add_argument('-I', '--input', help='MIDI input port to read from (port number or substring of a port name).')
-    parser.add_argument('-O', '--output', help='MIDI output port to write to (port number or substring of a port name).')
+    parser.add_argument('-I', '--input', help='MIDI input port to read from (port number or substring of a port name). If not specified, a virtual port is created.')
+    parser.add_argument('-O', '--output', help='MIDI output port to write to (port number or substring of a port name). If not specified, a virtual port is created.')
     parser.add_argument('-d', '--delay', default=5, type=int, help='Delay (ms): Time to wait for MIDI messages with potential cross-talk issues to come in before starting the algorithm. (default: %(default)s)')
     parser.add_argument('-H', '--history', default=150, type=int, help='History (ms): Time to keep old MIDI messages for cross-talk checks; excludes the delay. (default: %(default)s)')
     parser.add_argument('-t', '--threshold', default=30, type=int, help='Threshold (%%): Acceptable percentage of the maximum velocity signals that came in during the delay + history time frame. (default: %(default)s)')
