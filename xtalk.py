@@ -327,7 +327,8 @@ def read_callback(tup, data=None):
         LOOP.call_soon_threadsafe(asyncio.create_task, read_in(tup))
 
 async def read_in(tup):
-    await QUEUE.put(tup)
+    now = ( get_epoch_now(), )
+    await QUEUE.put(tup + now)
     msg = tup[0]
     if is_note_on(msg):
         HISTORY.add(msg)
@@ -361,7 +362,7 @@ async def write_out(midiout):
     history = ARGS.history / 1000
 
     while True:
-        msg, delta = await QUEUE.get()
+        msg, delta, first_seen = await QUEUE.get()
         bpolicy = None
         send = True
 
@@ -421,9 +422,14 @@ async def write_out(midiout):
                 print(f'The {plugin} plugin raised an exception: {e}')
 
         #send
-        #debug(f'sending: {pmsgs}')
         for msg in pmsgs:
             midiout.send_message(msg)
+
+        #print delay statistics
+        if ARGS.debug and pmsgs:
+            now = get_epoch_now()
+            diff = now - first_seen
+            print(f'DEBUG ({now}): sent: {pmsgs}, delay: {diff:.1f}ms', flush=True)
 
 async def run():
     global QUEUE
