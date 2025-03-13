@@ -34,13 +34,17 @@ def assertHasDefault(dictionary):
 class XtalkPlugin_choke(XtalkPlugin):
     '''
     E-drum cymbal chokes from rim switches sometimes come in as low volume
-    MIDI notes.
+    MIDI notes - probably because the piezo detects the touch.
 
     So this plugin triggers a choke of a previous loud cymbal hit on incoming
     low volume MIDI notes and suppresses those low volume notes.
 
-    Also, this can enable drummers to use low volume hits or touches as chokes
-    instead of their rim switch.
+    This way drummers can use low volume hits or touches (e.g. moving
+    the cymbal upwards from below) as chokes instead of their rim switch. In fact
+    this even adds choke support to cymbals without hardware rim switch.
+
+    Make sure to use a low mask time with the respective MIDI notes to
+    support quick choking.
 
     xtalk fix for https://github.com/corrados/edrumulus/issues/111
     '''
