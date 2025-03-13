@@ -1,3 +1,2 @@
 [ { "cause": [55,59], "notes": [30,38,40,43,45,48], "threshold": 10, "comment": "Hard crash (55) or ride (59) rim hits cause minor cross-talk to the snare, toms and kick." },
-{ "cause": [55,59], "notes": [36], "threshold": 20, "comment": "Hard crash (55) or ride (59) rim hits cause minor cross-talk to the kick (36)." },
-{ "cause": [55,59], "notes": [49,51], "threshold": 10, "comment": "Hard crash and ride rim hits (55, 59) cause minor cross-talk to regular crash & ride hits (49, 51)." } ]
+{ "cause": [55,59], "notes": [36], "threshold": 20, "comment": "Hard crash (55) or ride (59) rim hits cause minor cross-talk to the kick (36)." } ]
