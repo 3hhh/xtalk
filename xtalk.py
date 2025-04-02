@@ -149,7 +149,7 @@ class FilterPolicy():
             threshold = int(ARGS.threshold)/100
         else:
             threshold = int(policy["threshold"])/100
-        if policy.get("minimum") is None or policy["minimum"] < 0 or policy["minimum"] > 127:
+        if policy.get("minimum") is None or policy["minimum"] < 0:
             minimum = int(ARGS.minimum)
         else:
             minimum = int(policy["minimum"])
