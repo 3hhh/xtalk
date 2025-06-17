@@ -442,6 +442,11 @@ async def run():
         midiin, midiin_port = open_midiport(port=ARGS.input, type_='input', client_name=ARGS.client, api=ARGS.api, port_name='input', use_virtual=ARGS.input is None)
         midiin.ignore_types(sysex=False,timing=False,active_sense=False) #make sure no messages are ignored
         midiin.set_callback(read_callback)
+
+        #late init the plugin _send_func reference
+        for plugin in PLUGINS:
+            plugin._send_func = midiout.send_message
+
         await write_out(midiout)
     finally:
         if midiin:
