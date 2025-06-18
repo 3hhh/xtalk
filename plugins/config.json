@@ -40,8 +40,8 @@
   "replay":
   {
     "comment": "Record incoming MIDI notes and replay them at a later point in time. `record` defines the MIDI note to start/stop records, `play` the MIDI note to start/stop playing recorded notes. See the replay.py code comments for further explanations of the configuration options.",
-    "record": [ 51 ],
-    "play": [ 49 ],
+    "record": [ 90 ],
+    "play": [ 78 ],
     "loop": true,
     "pass": true,
     "play_stops_record": true
