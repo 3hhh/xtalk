@@ -81,6 +81,8 @@ PLUGIN_DIR_NAME = 'plugins'
 PLUGIN_DIR = os.path.join(SCRIPT_DIR, PLUGIN_DIR_NAME)
 PLUGIN_CONF_FILE_DEFAULT = os.path.join(PLUGIN_DIR, 'config.json')
 PLUGINS = [] #plugins in the order to use
+MIDIIN = []
+MIDIOUT = []
 ARGS = None
 POLICY = None
 QUEUE = None
@@ -267,8 +269,8 @@ def find_api(api_name):
 
 def parse_args():
     parser = argparse.ArgumentParser(description='MIDI cross-talk cancellation filter. All incoming MIDI messages are delayed for [delay] milliseconds and stored for [history] milliseconds. Once the delay expires, the notes with acceptable velocity which came in during that time frame are identified (at least [threshold] percent velocity of the strongest velocity that came in). If the current message shares an instrument with that group, it is let through.')
-    parser.add_argument('-I', '--input', help='MIDI input port to read from (port number or substring of a port name). If not specified, a virtual port is created.')
-    parser.add_argument('-O', '--output', help='MIDI output port to write to (port number or substring of a port name). If not specified, a virtual port is created.')
+    parser.add_argument('-I', '--input', action='append', help='MIDI input port(s) to read from (port number or substring of a port name). Repeatable for multiple ports. If not specified or the virtual keyword is used, a virtual port is created.')
+    parser.add_argument('-O', '--output', action='append', help='MIDI output port(s) to write to (port number or substring of a port name). Repeatable for multiple ports. If not specified or the virtual keyword is used, a virtual port is created.')
     parser.add_argument('-d', '--delay', default=5, type=int, help='Delay (ms): Time to wait for MIDI messages with potential cross-talk issues to come in before starting the algorithm. (default: %(default)s)')
     parser.add_argument('-H', '--history', default=150, type=int, help='History (ms): Time to keep old MIDI messages for cross-talk checks; excludes the delay. (default: %(default)s)')
     parser.add_argument('-t', '--threshold', default=30, type=int, help='Threshold (%%): Acceptable percentage of the maximum velocity signals that came in during the delay + history time frame. (default: %(default)s)')
@@ -290,6 +292,16 @@ def parse_args():
         args.delay = 0
         args.history = 0
         args.minimum = 0
+
+    #fall back to virtual ports (marked by [ None ])
+    if not args.input:
+        args.input = [ None ]
+    if not args.output:
+        args.output = [ None ]
+
+    #replace the 'virtual' keyword with virtual ports, i.e. None
+    args.input = list(map(lambda x: None if x == 'virtual' else x, args.input))
+    args.output = list(map(lambda x: None if x == 'virtual' else x, args.output))
 
     if args.delay < 0:
         raise ValueError('Delay is out of range.')
@@ -356,7 +368,7 @@ def debug(print_msg):
         now = get_epoch_now()
         print(f'DEBUG ({now}): {print_msg}', flush=True)
 
-async def write_out(midiout):
+async def write_out():
     cache = []
     delay = ARGS.delay / 1000
     history = ARGS.history / 1000
@@ -423,7 +435,7 @@ async def write_out(midiout):
 
         #send
         for msg in pmsgs:
-            midiout.send_message(msg)
+            send_message(msg)
 
         #print delay statistics
         if ARGS.debug and pmsgs:
@@ -431,28 +443,32 @@ async def write_out(midiout):
             diff = now - first_seen
             print(f'DEBUG ({now}): sent: {pmsgs}, delay: {diff:.1f}ms', flush=True)
 
+def send_message(msg):
+    for port in MIDIOUT:
+        port.send_message(msg)
+
 async def run():
     global QUEUE
     QUEUE = asyncio.Queue()
-    midiin = None
-    midiout = None
 
     try:
-        midiout, midiout_port = open_midiport(port=ARGS.output, type_='output', client_name=ARGS.client, api=ARGS.api, port_name='output', use_virtual=ARGS.output is None)
-        midiin, midiin_port = open_midiport(port=ARGS.input, type_='input', client_name=ARGS.client, api=ARGS.api, port_name='input', use_virtual=ARGS.input is None)
-        midiin.ignore_types(sysex=False,timing=False,active_sense=False) #make sure no messages are ignored
-        midiin.set_callback(read_callback)
+        for port in ARGS.output:
+            oport, name = open_midiport(port=port, type_='output', client_name=ARGS.client, api=ARGS.api, port_name='output', use_virtual=port is None)
+            MIDIOUT.append(oport)
+        for port in ARGS.input:
+            oport, name = open_midiport(port=port, type_='input', client_name=ARGS.client, api=ARGS.api, port_name='input', use_virtual=port is None)
+            MIDIIN.append(oport)
+            oport.ignore_types(sysex=False,timing=False,active_sense=False) #make sure no messages are ignored
+            oport.set_callback(read_callback)
 
         #late init the plugin _send_func reference
         for plugin in PLUGINS:
-            plugin._send_func = midiout.send_message
+            plugin.send_func = send_message
 
-        await write_out(midiout)
+        await write_out()
     finally:
-        if midiin:
-            del midiin
-        if midiout:
-            del midiout
+        del MIDIIN[:]
+        del MIDIOUT[:]
 
 def print_info():
     print('Available APIs:')

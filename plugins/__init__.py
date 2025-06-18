@@ -67,7 +67,7 @@ class _XtalkPlugin(ABC):
         :param send_func: Function to directly send MIDI messages.
         '''
         self._debug = debug
-        self._send_func = send_func
+        self.send_func = send_func
         self.config = config
         if not self.config:
             self.config = {}
@@ -85,7 +85,7 @@ class _XtalkPlugin(ABC):
         ''' Directly send the given MIDI message to the global MIDI output, bypassing any further plugins.
         :param msg: MIDI message
         '''
-        self._send_func(msg)
+        self.send_func(msg)
 
 class XtalkPlugin(_XtalkPlugin):
     '''
