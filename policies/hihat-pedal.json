@@ -1,3 +1,3 @@
 [ { "cause": [44], "notes": [42,46,22,26], "threshold": 50, "comment": "The hihat pedal (44) tends to cause cross-talk with the hihat bow or rim when used." },
 { "cause": [], "notes": [42,46], "threshold": 0, "minimum": 20, "comment": "The hihat pedal (44) ccross-talk tends to occur ~30ms before or after a pedal stomp, i.e. we cannot always use a cause." },
-{ "cause": [], "notes": [44], "minimum": 20, "threshold": 0, "comment": "Ignore soft hihat pedal stomps - usually they are a user error or caused as cross-talk by half-open hihat play." }]
+{ "cause": [], "notes": [44], "minimum": 10, "threshold": 0, "comment": "Ignore soft hihat pedal stomps - usually they are a user error or caused as cross-talk by half-open hihat play." }]
