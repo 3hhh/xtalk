@@ -517,7 +517,7 @@ def main():
         except KeyError:
             pconf = plugin_conf.get(plugin)
 
-        PLUGINS.append(plugin_cls(config=pconf, debug=ARGS.debug))
+        PLUGINS.append(plugin_cls(config=pconf, args=ARGS))
         debug(f'Plugin {plugin} loaded. Config: {pconf}')
         i=i+1
 

@@ -48,8 +48,8 @@ class XtalkPlugin_exec(XtalkPlugin):
     # whether all notes should trigger program execution (False = MIDI note on messages only)
     ALL_NOTES = False
 
-    def __init__(self, config=None, debug=False):
-        super().__init__(config=config, debug=debug)
+    def __init__(self, config=None, args=None):
+        super().__init__(config=config, args=args)
 
         self.suppression_cache = {}
         self.background_tasks = set()

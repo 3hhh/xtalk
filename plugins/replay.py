@@ -49,8 +49,9 @@ class XtalkPlugin_replay(XtalkPlugin):
     # whether or not the play note should also stop running records
     PLAY_STOPS_RECORD = True
 
-    def __init__(self, config=None, debug=False):
-        super().__init__(config=config, debug=debug)
+    def __init__(self, config=None, args=None):
+        super().__init__(config=config, args=args)
+
         self.recording = False
         self.cache = []
         self.cache_last = None #timestamp of the last cache entry

@@ -60,15 +60,15 @@ class XtalkPluginAbortException(XtalkPluginException):
 class _XtalkPlugin(ABC):
     ''' Internal base class. Not meant to be used by users. '''
 
-    def __init__(self, config=None, debug=False, send_func=None):
+    def __init__(self, config=None, args=None, send_func=None):
         ''' Constructor.
         :param config: A dict with configuration options supplied by the user.
-        :param debug: Whether or not the plugin should run in debug mode.
+        :param args: Arguments used by xtalk.
         :param send_func: Function to directly send MIDI messages.
         '''
-        self._debug = debug
         self.send_func = send_func
         self.config = config
+        self.args = args
         if not self.config:
             self.config = {}
 
@@ -76,10 +76,18 @@ class _XtalkPlugin(ABC):
         ''' Helper method to print debug output in a standard format.
         :param msg: Debug message string.
         '''
-        if self._debug:
+        if self.args.debug:
             now = get_epoch_now()
             cls_name = type(self).__name__
             print(f'DEBUG ({now}): {cls_name}: {msg}', flush=True)
+
+    def warn(self, msg):
+        ''' Helper method to print warning output in a standard format.
+        :param msg: Warning message string.
+        '''
+        now = get_epoch_now()
+        cls_name = type(self).__name__
+        print(f'WARNING ({now}): {cls_name}: {msg}', flush=True)
 
     def send(self, msg):
         ''' Directly send the given MIDI message to the global MIDI output, bypassing any further plugins.

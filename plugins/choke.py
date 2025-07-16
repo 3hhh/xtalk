@@ -69,8 +69,8 @@ class XtalkPlugin_choke(XtalkPlugin):
     # time in ms during which to allow chokes
     TIMEOUT = 3000
 
-    def __init__(self, config=None, debug=False):
-        super().__init__(config=config, debug=debug)
+    def __init__(self, config=None, args=None):
+        super().__init__(config=config, args=args)
 
         self.last = None #last cymbal message, if any was seen lately
         self.last_time = None #timestamp of the last cymbal message

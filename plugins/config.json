@@ -9,7 +9,7 @@
       "53": [ 53,67 ],
       "67": [ 53,67 ]
     },
-    "comment": "51/59 = ride, 49/55 = crash, 53/67 = china; see the choke.py code comments for further explanations of the configuration options.",
+    "comment": "51/59 = ride, 49/55 = crash, 53/67 = china. See the choke.py code comments for further explanations of the configuration options.",
     "choke_max": { "default": 20 },
     "choke_cnt": { "default": 1 },
     "cymbal_max": { "default": 50 }
@@ -45,6 +45,23 @@
     "loop": true,
     "pass": true,
     "play_stops_record": true
+  },
+
+  "time":
+  {
+    "comment": "Checks incoming MIDI notes against a reference click for correct timing. If the time is off, an error MIDI note is sent to the reference click output. This is intended for practice purposes. See the time.py code comments for further explanations of the configuration options.",
+    "control": [ 86 ],
+    "client": "time",
+    "delay": 3000,
+    "play_interval": 1,
+    "accept_range": 30,
+    "max_diff": 100,
+    "error_early": 1,
+    "error_late": 2,
+    "error_velocity": 127,
+    "drop": false,
+    "calibration": 0,
+    "auto_calibration": true
   },
 
   "replace":

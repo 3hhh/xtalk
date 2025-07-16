@@ -1,6 +1,6 @@
 # xtalk
 
-MIDI cross-talk cancellation filter.
+MIDI cross-talk cancellation filter and plugin host for real-time MIDI applications in Python.
 
 It should work on Linux, Windows and Mac OS.
 
@@ -10,9 +10,11 @@ See `xtalk.py --help` for the list of available options.
 
 `xtalk.py --list` will display all available MIDI interfaces that you can work with.
 
-You can either specify a basic set of parameters on the command-line or work with advanced filter policies.
+For crass-talk cancellation you can either specify a basic set of parameters on the command-line or use advanced filter policies.
 The policies enable users to specify which MIDI notes cause what cross-talk MIDI notes, so that ideally only
 those are filtered. A set of example policies can be found in the policies folder.
+
+The currently available plugins can be found in the plugins folder.
 
 ## Installation
 

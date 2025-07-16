@@ -32,8 +32,8 @@ class XtalkPlugin_amplify(XtalkPlugin):
     # map: MIDI note --> dict of "multiply" (percent) and "add" factors; the new velocity will be: v_new = v_old * multiply + add
     AMPLIFY = { }
 
-    def __init__(self, config=None, debug=False):
-        super().__init__(config=config, debug=debug)
+    def __init__(self, config=None, args=None):
+        super().__init__(config=config, args=args)
 
         if config:
             self.AMPLIFY = dict(config.get('amplify', self.AMPLIFY))
