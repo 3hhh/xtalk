@@ -202,7 +202,7 @@ class XtalkPlugin_time(XtalkPlugin):
         else:
             note = self.ERROR_EARLY
 
-        ret = [0x9f, note, velocity] #0x9f = note on on channel 16 (we use channel a channel != 1 to make filtering more easy)
+        ret = [0x9f, note, velocity] #0x9f = note on on channel 16 (we use a channel != 1 to make filtering more easy)
         self.debug(f'error note on for {msg}: {ret} (diff: {diff})')
         self.oport.send_message(ret)
         ret = [0x8f, note, 0]
