@@ -18,9 +18,10 @@
   "amplify":
   {
     "amplify": {
-      "51": { "multiply": 70, "add": 10 }
+      "1": { "multiply": 70, "add": 10 },
+      "44": { "multiply": 0, "add": 100 }
     },
-    "comment": "Change the velocity of the 51 note to 70% of its original value and add 10 points."
+    "comment": "Change the velocity of the 1 note to 70% of its original value and add 10 points. Set the 44 note (hihat pedal)."
   },
 
   "exec":
