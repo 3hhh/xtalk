@@ -1,0 +1,120 @@
+#!/bin/bash
+#
+# installer for xtalk and related packages inside a python venv
+#
+
+function errorOut {
+>&2 echo "ERROR: $1"
+>&2 echo "Aborting..."
+exit 1
+}
+
+#name of the directory this script resides in (hopefully)
+SCRIPT_DIR="$(readlink -f "${BASH_SOURCE[0]}")" || errorOut "Failed to execute readlink."
+SCRIPT_DIR="$(dirname "$SCRIPT_DIR")" || errorOut "Failed to execute dirname."
+
+#name of this script
+SCRIPT_NAME="${BASH_SOURCE[0]##*/}"
+
+#where to find the offline packages
+PKG_DIR="$SCRIPT_DIR/pkgs"
+
+#where to write the binary
+BIN="$SCRIPT_DIR/xtalk"
+
+#default venv install path
+ENV_DIR="$HOME"
+#ENV is initialized later
+
+function usage {
+echo "Usage: $SCRIPT_NAME install|uninstall|reinstall [env dir]
+
+[env dir]: Path to the directory where to install the python venv to.  Default: $ENV_DIR"
+exit 1
+}
+
+function isInstalled {
+[ -d "$ENV" ] || [ -f "$BIN" ]
+}
+
+function installR {
+isInstalled && errorOut "$BIN already appears to be installed. Either remove the existing installation manually beforehand or use the reinstall command."
+
+echo "Creating the python venv at $ENV..."
+#NOTE: python3-rtmidi must be installed via the package manager as it involves a lot of OS binary dependencies which we cannot all know at the time of offline download
+python3 -m venv --system-site-packages "$ENV" || errorOut "Failed to create the python venv."
+
+echo "Installing the dependencies inside the python venv..."
+source "$ENV/bin/activate" || errorOut "Failed to activate the python venv at $ENV."
+cd "$PKG_DIR" || errorOut "Failed to switch to $PKG_DIR."
+
+#install dependencies
+pip3 install --no-index --find-links=. pynput || errorOut "Failed to install pynput."
+
+#create binary
+cat << EOF > "$BIN" || errorOut "Failed to write to $BIN."
+#!/bin/bash
+
+function errorOut {
+>&2 echo "ERROR: \$1"
+>&2 echo "Aborting..."
+exit 1
+}
+
+source "$ENV/bin/activate" || errorOut "Failed to activate the python venv at $ENV."
+exec python3 "$SCRIPT_DIR/xtalk.py" "\$@"
+EOF
+chmod +x "$BIN" || errorOut "Failed to make $BIN executable."
+}
+
+function uninstallR {
+echo "Removing $BIN..."
+rm -f "$BIN"
+
+echo "Removing $ENV..."
+rm -rf "$ENV"
+
+return 0
+}
+
+function reinstallR {
+uninstallR || errorOut "Failed to uninstall."
+installR
+}
+
+function main {
+[ $# -lt 1 ] && usage
+[ $# -gt 2 ] && usage
+
+[ $EUID -eq 0 ] && errorOut "This script must not be run as root."
+[ -z "$HOME" ] && errorOut "The HOME variable is not set."
+
+#parse commands
+local cmd="$1"
+ENV="${2:-$ENV_DIR}"
+[ -d "$ENV" ] || errorOut "Not an existing directory: $ENV"
+ENV="$ENV/xtalk-venv"
+
+case "$cmd" in
+	install)
+	installR
+	;;
+
+	uninstall)
+	uninstallR
+	;;
+
+	reinstall)
+	reinstallR
+	;;
+
+	*)
+	usage
+	;;
+esac
+
+echo "All done."
+exit 0
+}
+
+main "$@"

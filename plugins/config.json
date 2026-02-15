@@ -41,8 +41,8 @@
   "replay":
   {
     "comment": "Record incoming MIDI notes and replay them at a later point in time. `record` defines the MIDI note to start/stop records, `play` the MIDI note to start/stop playing recorded notes. See the replay.py code comments for further explanations of the configuration options.",
-    "record": [ 90 ],
-    "play": [ 78 ],
+    "record": [ 106 ],
+    "play": [ 94 ],
     "loop": true,
     "pass": true,
     "play_stops_record": true
@@ -51,7 +51,7 @@
   "time":
   {
     "comment": "Checks incoming MIDI notes against a reference click for correct timing. If the time is off, an error MIDI note is sent to the reference click output. This is intended for practice purposes. See the time.py code comments for further explanations of the configuration options.",
-    "control": [ 86 ],
+    "control": [ 102 ],
     "client": "time",
     "delay": 3000,
     "play_interval": 1,
@@ -63,6 +63,17 @@
     "drop": false,
     "calibration": 0,
     "auto_calibration": true
+  },
+
+  "keyboard":
+  {
+    "comment": "Emulate a PC keyboard based on incoming MIDI notes. Repeated MIDI notes within a short time may cause a different key stroke than a single MIDI note only. In the below example the right arrow key is pressed, if the MIDI note 90 comes in only once during 250ms and the right arrow key, if it comes in twice during that time. See the keyboard.py code comments for further explanations of the configuration options.",
+    "pass": false,
+    "repeat-timeout": 250,
+    "delay": 0,
+    "mapping": {
+      "90": [ [ "right" ], [ "left" ] ]
+    }
   },
 
   "replace":
