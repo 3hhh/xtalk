@@ -6,9 +6,9 @@ It should work on Linux, Windows and Mac OS.
 
 ## Usage
 
-See `xtalk.py --help` for the list of available options.
+See `xtalk --help` for the list of available options.
 
-`xtalk.py --list` will display all available MIDI interfaces that you can work with.
+`xtalk --list` will display all available MIDI interfaces that you can work with.
 
 For crass-talk cancellation you can either specify a basic set of parameters on the command-line or use advanced filter policies.
 The policies enable users to specify which MIDI notes cause what cross-talk MIDI notes, so that ideally only
