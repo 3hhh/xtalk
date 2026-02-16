@@ -125,13 +125,13 @@ class XtalkPlugin_keyboard(XtalkPlugin):
             #update hbuf
             self.hbuf[dkey] = {
                 'count': count,
-                'task' : asyncio.create_task(self.handle_note_later(note, on, keys)),
+                'task' : asyncio.create_task(self.press_keys_later(note, on, keys)),
             }
 
-    async def handle_note_later(self, note, on, keys):
+    async def press_keys_later(self, note, on, keys):
         try:
             await asyncio.sleep(self.repeat_timeout/1000)
-            self.debug(f'handle_note_later({note}, {on})')
+            self.debug(f'press_keys_later({note}, {on}, {keys})')
             await self.press_keys(note, on, keys)
         except asyncio.CancelledError:
             return
