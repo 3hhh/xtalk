@@ -62,7 +62,11 @@
     "error_velocity": 127,
     "drop": false,
     "calibration": 0,
-    "auto_calibration": true
+    "auto_calibration": true,
+    "stats_file": "/tmp/xtalk_time_stats.txt",
+    "stats_interval": 5,
+    "stats_duration": 600,
+    "stats_show_missed": 20
   },
 
   "keyboard":

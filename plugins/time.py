@@ -22,6 +22,9 @@
 import asyncio
 import time
 
+from datetime import datetime
+from collections import deque
+
 from rtmidi.midiutil import open_midiport
 
 from plugins import XtalkPlugin
@@ -84,6 +87,18 @@ class XtalkPlugin_time(XtalkPlugin):
 
     # Whether or not to use automatic calibration.
     AUTO_CALIBRATION = True
+
+    # File to write success statistics to (empty = disable stats).
+    STATS_FILE = ''
+
+    # Time in seconds after which success statistics are written to the STATS_FILE.
+    STATS_INTERVAL = 5
+
+    # Duration in seconds for which to consider past statistics.
+    STATS_DURATION = 600
+
+    # How many missed hits to show in the stats.
+    STATS_SHOW_MISSED = 20
 
     async def read_click(self, tup):
         # on received reference note:
@@ -150,6 +165,25 @@ class XtalkPlugin_time(XtalkPlugin):
             self.DROP = bool(config.get('drop', self.DROP))
             self.CALIBRATION = int(config.get('calibration', self.CALIBRATION))
             self.AUTO_CALIBRATION = bool(config.get('auto_calibration', self.AUTO_CALIBRATION))
+            self.STATS_FILE = config.get('stats_file', self.STATS_FILE)
+            self.STATS_INTERVAL = int(config.get('stats_interval', self.STATS_INTERVAL))
+            self.STATS_DURATION = int(config.get('stats_duration', self.STATS_DURATION))
+            self.STATS_SHOW_MISSED = int(config.get('stats_show_missed', self.STATS_SHOW_MISSED))
+
+            #some sanitization (we let most fail later though)
+            self.STATS_INTERVAL = max(self.STATS_INTERVAL, 1)
+            self.STATS_DURATION = max(self.STATS_DURATION, 1)
+
+        #init stats
+        self.stats_task = None
+        self.stats_hits = 0
+        self.stats_hits_last = 0
+        self.stats_late = 0
+        self.stats_early = 0
+        self.stats_late_last = 0
+        self.stats_early_last = 0
+        self.stats_missed_notes = {} #note --> count of misses
+        self.stats_missed_buf = deque(maxlen=self.STATS_SHOW_MISSED) #buffer for the last misses
 
         # open the reference click MIDI input & output port
         self.iport, _name = open_midiport(port=None, type_='input', client_name=self.CLIENT, api=args.api, port_name='input', use_virtual=True, interactive=False)
@@ -209,7 +243,7 @@ class XtalkPlugin_time(XtalkPlugin):
         self.debug(f'error note off for {msg}: {ret}')
         self.oport.send_message(ret)
 
-    #returns True, if the timing in the current moment is OK; also returns the actual time difference to the reference click
+    #returns True, if the timing in the current moment is OK; also returns the actual time difference in ns to the reference click
     def check_time(self, msg):
         cnow = time.time_ns() - ( self.DELAY + self.args.delay + self.CALIBRATION ) * 1000000 - self.calib #we need to subtract self.DELAY as the player will hear the click that many ms later and play to it as reference; the same applies to self.args.delay
         closest_ind = self.get_closest(cnow)
@@ -236,9 +270,114 @@ class XtalkPlugin_time(XtalkPlugin):
 
         return (ret, diff)
 
+    def update_stats(self, msg, time_ok, time_diff):
+        #self.debug(f'Updating stats for {msg}...')
+        note = msg[1]
+
+        if time_ok:
+            self.stats_hits += 1
+            self.stats_hits_last += 1
+        else:
+            self.stats_missed_notes[note] = self.stats_missed_notes.get(note, 0) + 1
+            now = time.time()
+            self.stats_missed_buf.append((now, note, time_diff))
+
+            if time_diff > 0:
+                self.stats_late += 1
+                self.stats_late_last += 1
+            else:
+                self.stats_early += 1
+                self.stats_early_last += 1
+
+        asyncio.create_task(self.remove_stats_later(msg, time_ok, time_diff))
+
+    async def remove_stats_later(self, msg, time_ok, time_diff):
+        await asyncio.sleep(self.STATS_DURATION)
+        note = msg[1]
+        #self.debug(f'Removing old stats for {msg}...')
+
+        if time_ok:
+            self.stats_hits_last -= 1
+        else:
+            self.stats_missed_notes[note] -= 1
+
+            if time_diff > 0:
+                self.stats_late_last -= 1
+            else:
+                self.stats_early_last -= 1
+
+    def get_most_missed_note(self):
+        ret_note = None
+        ret_cnt = 0
+
+        for note, cnt in self.stats_missed_notes.items():
+            if cnt > ret_cnt:
+                ret_note = note
+                ret_cnt = cnt
+
+        return (ret_note, ret_cnt)
+
+    def write_stats(self):
+        #file writing may block, so this function MUST be delegated to a separate thread
+        with open(self.STATS_FILE, 'w', encoding='utf-8') as sfile:
+            while True:
+                time.sleep(self.STATS_INTERVAL)
+                self.debug(f'Writing stats to {self.STATS_FILE}...')
+
+                cnt = self.stats_hits + self.stats_early + self.stats_late
+                if cnt == 0:
+                    cnt = 1
+                cnt_last = self.stats_hits_last + self.stats_early_last + self.stats_late_last
+                if cnt_last == 0:
+                    cnt_last = 1
+                cnt_missed_last = self.stats_early_last + self.stats_late_last
+                if cnt_missed_last == 0:
+                    cnt_missed_last = 1
+
+                perc_hits = self.stats_hits / cnt
+                perc_early = self.stats_early / cnt
+                perc_late = self.stats_late / cnt
+                perc_hits_last = self.stats_hits_last / cnt_last
+                perc_early_last = self.stats_early_last / cnt_last
+                perc_late_last = self.stats_late_last / cnt_last
+                most_missed_note, most_missed_cnt = self.get_most_missed_note()
+                perc_most_missed = most_missed_cnt / cnt_missed_last
+
+                sfile.write(f'\nHits (since start): {self.stats_hits}/{cnt} ({perc_hits:.1%})\n')
+                sfile.write(f'Early (since start): {self.stats_early}/{cnt} ({perc_early:.1%})\n')
+                sfile.write(f'Late (since start): {self.stats_late}/{cnt} ({perc_late:.1%})\n\n')
+
+                sfile.write(f'Hits ({self.STATS_DURATION} seconds): {self.stats_hits_last}/{cnt_last} ({perc_hits_last:.1%})\n')
+                sfile.write(f'Early ({self.STATS_DURATION} seconds): {self.stats_early_last}/{cnt_last} ({perc_early_last:.1%})\n')
+                sfile.write(f'Late ({self.STATS_DURATION} seconds): {self.stats_late_last}/{cnt_last} ({perc_late_last:.1%})\n\n')
+
+                sfile.write(f'Most missed note ({self.STATS_DURATION} seconds): {most_missed_note} ({most_missed_cnt}/{cnt_missed_last} times = {perc_most_missed:.1%})\n\n')
+
+                if self.AUTO_CALIBRATION:
+                    calib = self.calib / 1000000
+                    sfile.write(f'Calibration value: {calib:.1f}ms\n\n')
+
+                if self.STATS_SHOW_MISSED > 0:
+                    sfile.write('Last missed notes:\n')
+                    for unix_time, note, time_diff in reversed(self.stats_missed_buf):
+                        ts = datetime.fromtimestamp(unix_time).strftime("%Y-%m-%d %H:%M:%S")
+                        diff = time_diff / 1000000
+                        if time_diff > 0:
+                            error = "late"
+                        else:
+                            error = "early"
+                        sfile.write(f'{ts} note {note}: {error} ({diff:.0f}ms)\n')
+                    sfile.write('\n\n')
+
+                sfile.flush()
+                sfile.seek(0)
+
     async def process(self, msg):
         if self.loop is None:
             self.loop = asyncio.get_running_loop()
+            if self.STATS_FILE:
+                self.stats_task = asyncio.create_task(asyncio.to_thread(self.write_stats))
+                self.stats_task.add_done_callback(lambda task: task.result()) #make sure to print any exceptions coming from the thread
 
         # on received input note:
         # 1. check against reference notes in search buffer
@@ -250,6 +389,10 @@ class XtalkPlugin_time(XtalkPlugin):
                 self.debug(f'toggle enabled status: {msg}, new status: {self.enabled}')
             elif self.enabled and len(self.buffer) > 0:
                 time_ok, time_diff = self.check_time(msg)
+
+                if self.STATS_FILE:
+                    self.update_stats(msg, time_ok, time_diff)
+
                 if not time_ok:
                     self.send_error(msg, time_diff)
                     if self.DROP:
