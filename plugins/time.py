@@ -28,6 +28,7 @@ from collections import deque
 from rtmidi.midiutil import open_midiport
 
 from plugins import XtalkPlugin
+from plugins import is_note
 from plugins import is_note_on
 
 class XtalkPlugin_time(XtalkPlugin):
@@ -100,6 +101,26 @@ class XtalkPlugin_time(XtalkPlugin):
     # How many missed hits to show in the stats.
     STATS_SHOW_MISSED = 20
 
+    # set: MIDI notes to control the incoming click track
+    # on 0 occurrences (default): The click track is passed to the click track output.
+    # on 1 occurrence           : Replace incoming click MIDI notes with the CLICK_REPLACE MIDI note. This can be used to make an accentuated MIDI click non-accentuated.
+    #                             To replace MIDI notes of the main MIDI channel, please use the `replace` plugin instead.
+    # on 2 occurrences          : Stop outputting the click track and any error notes.
+    CLICK_CONTROL = ()
+
+    # All incoming time/click MIDI notes will be replaced by this MIDI note, if replacing was enabled (i.e. CLICK_CONTROL was seen before).
+    CLICK_REPLACE = -1
+
+    def send_click(self, msg):
+        if self.click_mode == 2: #we shouldn't send anything
+            return
+
+        if self.click_mode == 1 and self.CLICK_REPLACE >= 0 and self.CLICK_REPLACE < 128 and is_note(msg):
+            msg[1] = self.CLICK_REPLACE
+
+        #self.debug(f'sending click: {msg}')
+        self.oport.send_message(msg)
+
     async def read_click(self, tup):
         # on received reference note:
         # 1. if note on: store in search buffer with exact time
@@ -122,10 +143,9 @@ class XtalkPlugin_time(XtalkPlugin):
                 if is_on:
                     self.index = ( self.index + 1 ) % self.PLAY_INTERVAL
                     if self.index == 0:
-                        #self.debug(f'sending click: {msg}')
-                        self.oport.send_message(msg)
+                        self.send_click(msg)
                 else:
-                    self.oport.send_message(msg)
+                    self.send_click(msg)
 
             #keep it in the buffer for 2 * self.DELAY ms ("past")
             if is_on:
@@ -146,6 +166,7 @@ class XtalkPlugin_time(XtalkPlugin):
         super().__init__(config=config, args=args)
 
         self.enabled = True
+        self.click_mode = 0 #see the CLICK_CONTROL doc
         self.buffer = [] #(time, msg) buffer for note on events
         self.index = -1
         self.loop = None #asyncio event loop, will be initialized late
@@ -169,6 +190,8 @@ class XtalkPlugin_time(XtalkPlugin):
             self.STATS_INTERVAL = int(config.get('stats_interval', self.STATS_INTERVAL))
             self.STATS_DURATION = int(config.get('stats_duration', self.STATS_DURATION))
             self.STATS_SHOW_MISSED = int(config.get('stats_show_missed', self.STATS_SHOW_MISSED))
+            self.CLICK_CONTROL = set(config.get('click_control', self.CLICK_CONTROL))
+            self.CLICK_REPLACE = int(config.get('click_replace', self.CLICK_REPLACE))
 
             #some sanitization (we let most fail later though)
             self.STATS_INTERVAL = max(self.STATS_INTERVAL, 1)
@@ -226,6 +249,9 @@ class XtalkPlugin_time(XtalkPlugin):
         return ret
 
     def send_error(self, msg, diff):
+        if self.click_mode == 2: #we shouldn't send anything
+            return
+
         velocity = self.ERROR_VELOCITY
 
         if velocity < 0 or velocity > 127:
@@ -387,6 +413,11 @@ class XtalkPlugin_time(XtalkPlugin):
             if note in self.CONTROL:
                 self.enabled = not self.enabled
                 self.debug(f'toggle enabled status: {msg}, new status: {self.enabled}')
+            elif note in self.CLICK_CONTROL:
+                self.click_mode = ( self.click_mode + 1 ) % 3
+                if self.click_mode == 1 and ( self.CLICK_REPLACE < 0 or self.CLICK_REPLACE >= 128 ): #skip mode 1, if it has no valid config
+                    self.click_mode = 2
+                self.debug(f'click mode change: {msg}, new mode: {self.click_mode}')
             elif self.enabled and len(self.buffer) > 0:
                 time_ok, time_diff = self.check_time(msg)
 
