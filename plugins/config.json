@@ -27,15 +27,14 @@
   "exec":
   {
     "exec": {
-      "51": [
-          { "command": [ "gnome-calculator" ], "min_velocity": 70 },
-          { "command": [ "bash", "-c", "--", "echo $(date) hello world! >> /tmp/exec-test.txt" ] }
+      "90": [
+          { "command": [ "xdotool", "search", "--onlyvisible", "--class", "Xfce4-terminal", "windowactivate", "--sync" ] }
         ]
     },
-    "comment": "A simple test spawning gnome-calculator on MIDI note 51, if velocity is >= 70 and the bash command otherwise. See the exec.py code comments for further explanations of the configuration options.",
+    "comment": "Focus the terminal window on MIDI note 90. This is useful with the keyboard plugin to focus the correct window. Note that it's not guaranteed to execute before the keyboard event is sent though. See the exec.py code comments for further explanations of the configuration options.",
     "pass": true,
     "all_notes": false,
-    "suppress": 1000
+    "suppress": 3000
   },
 
   "replay":
