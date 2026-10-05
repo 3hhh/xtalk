@@ -28,13 +28,17 @@
   {
     "exec": {
       "90": [
-          { "command": [ "xdotool", "search", "--onlyvisible", "--class", "Xfce4-terminal", "windowactivate", "--sync" ] }
+          {
+            "command1": [ "bash", "-c", "kill -USR1 $(pgrep -o -x klickly)" ],
+            "command2": [ "bash", "-c", "kill -USR2 $(pgrep -o -x klickly)" ],
+            "repeat-timeout": 250
+          }
         ]
     },
-    "comment": "Focus the terminal window on MIDI note 90. This is useful with the keyboard plugin to focus the correct window. Note that it's not guaranteed to execute before the keyboard event is sent though. See the exec.py code comments for further explanations of the configuration options.",
-    "pass": true,
+    "comment": "Execute command1 on MIDI note 90. If MIDI note 90 comes in again during the next 250ms, execute command2 instead. See the exec.py code comments for further explanations of the configuration options.",
+    "pass": false,
     "all_notes": false,
-    "suppress": 3000
+    "suppress": 500
   },
 
   "replay":

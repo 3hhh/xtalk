@@ -36,7 +36,7 @@ class XtalkPlugin_exec(XtalkPlugin):
 
     # configuration variables: use the config.json config file to set them
 
-    # map: MIDI note --> [ command, arg 1, arg 2, ... ] array
+    # map: MIDI note --> commands dict
     EXEC = { }
 
     # whether or not to pass matching MIDI notes to the output
@@ -52,7 +52,7 @@ class XtalkPlugin_exec(XtalkPlugin):
         super().__init__(config=config, args=args)
 
         self.suppression_cache = {}
-        self.background_tasks = set()
+        self.background_tasks = {} #note --> { 'task': reference, 'waiting': bool }
 
         if config:
             self.EXEC = dict(config.get('exec', self.EXEC))
@@ -63,24 +63,41 @@ class XtalkPlugin_exec(XtalkPlugin):
         for val in self.EXEC.values():
             try:
                 for d in val:
-                    _testing = d['command'][0]
+                    _testing = d['command1'][0]
             except (TypeError, KeyError, ValueError) as e:
                 raise ValueError(f'The commands must be specified as in the example, but this looks different: {val}') from e
 
-    async def execute_coro(self, command):
+    async def execute_coro(self, command, note, sleep_ms=0):
         try:
+            if sleep_ms > 0:
+                self.background_tasks[note]['waiting'] = True
+                self.debug(f'waiting for note {note}: {sleep_ms}ms')
+                await asyncio.sleep(sleep_ms/1000)
+            self.background_tasks[note]['waiting'] = False
+            self.suppression_cache[note] = get_epoch_now()
+            self.debug(f'executing for note {note}: {command}')
             proc = await asyncio.create_subprocess_exec(*command, stdin=subprocess.DEVNULL, stdout=sys.stdout, stderr=sys.stderr)
             ret = await proc.wait()
             if ret != 0:
                 print(f'The command {command} returned a non-zero exit code {ret}.', file=sys.stderr)
+        except asyncio.CancelledError:
+            return
         except Exception:
             traceback.print_exc()
 
-    def execute(self, command):
-        task = asyncio.create_task(self.execute_coro(command))
-        #without this reference, tasks may be garbage collected, even if still running
-        self.background_tasks.add(task)
-        task.add_done_callback(self.background_tasks.discard)
+    def executeFor(self, note, ex):
+        previous = self.background_tasks.get(note, {})
+        command = ex['command1']
+        sleep_ms = ex.get('repeat-timeout', 0)
+
+        if previous.get('waiting', False) and ex.get('command2'): #a previous task is running that can still be cancelled --> we need to run command2 instead of command1
+            previous['task'].cancel()
+            sleep_ms = 0
+            command = ex['command2']
+
+        #run
+        task = asyncio.create_task(self.execute_coro(command, note, sleep_ms))
+        self.background_tasks[note] = { 'task': task, 'waiting': True }
 
     async def process(self, msg):
         pass_msg = True
@@ -100,13 +117,10 @@ class XtalkPlugin_exec(XtalkPlugin):
                     if last and ( now - last <= self.SUPPRESS ):
                         self.debug(f'execution of {to_exec} suppressed: {msg}')
                     else:
-                        self.suppression_cache[note] = now
                         for ex in to_exec:
                             min_velocity = ex.get('min_velocity', 0)
                             if velocity >= min_velocity:
-                                cmd = ex['command']
-                                self.debug(f'executing: {cmd}')
-                                self.execute(cmd)
+                                self.executeFor(note, ex)
                                 break
 
                 #NOTE: we intentionally also block note off or other related messages here with self.PASS = False - even if nothing was executed
